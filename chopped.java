@@ -220,7 +220,7 @@ public static class Token {
     private static class Parser {
         private static List<Token> tokens;
         private static int pos;
-        private static Map<String, Double> variables = new HashMap<>();
+        private static Map<String, Object> variables = new HashMap<>();
 
         /**
          * Parses the list of tokens, either as a say statement, if statement, or an expression.
@@ -308,7 +308,7 @@ public static class Token {
         }
 
         /**
-         * Parses a set statement: set var to expression.
+         * Parses a set statement: set var to value (string, identifier, or expression).
          */
         private static void parseSet() {
             pos++; // consume set
@@ -317,8 +317,22 @@ public static class Token {
             pos++;
             if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("KEYWORD:TO")) throw new RuntimeException("Expected 'to' after variable name");
             pos++; // consume to
-            double value = parseExpr(false);
-            variables.put(varName, value);
+            if (pos < tokens.size()) {
+                Token next = tokens.get(pos);
+                if (next.TokenType.equals("STRING")) {
+                    variables.put(varName, next.TokenValue);
+                    pos++;
+                } else if (next.TokenType.equals("IDENTIFIER")) {
+                    if (!variables.containsKey(next.TokenValue)) {
+                        throw new RuntimeException("Undefined variable: " + next.TokenValue);
+                    }
+                    variables.put(varName, variables.get(next.TokenValue));
+                    pos++;
+                } else {
+                    double value = parseExpr(false);
+                    variables.put(varName, value);
+                }
+            }
         }
 
         /**
@@ -420,7 +434,9 @@ public static class Token {
                 return Double.parseDouble(t.TokenValue);
             } else if (t.TokenType.equals("IDENTIFIER")) {
                 if (!variables.containsKey(t.TokenValue)) throw new RuntimeException("Undefined variable: " + t.TokenValue);
-                return variables.get(t.TokenValue);
+                Object val = variables.get(t.TokenValue);
+                if (!(val instanceof Double)) throw new RuntimeException("Variable " + t.TokenValue + " is not a number");
+                return (Double) val;
             } else if (t.TokenType.equals("LPAREN")) {
                 double val = parseExpr();
                 if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("RPAREN")) throw new RuntimeException("Missing )");

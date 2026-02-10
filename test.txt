@@ -1,6 +1,0 @@
-set pizza to 5
-
-say pizza "pizza"
-
-
-// type test.txt | java chopped
