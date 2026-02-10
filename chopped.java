@@ -3,6 +3,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 /**
  * The main class for the Chopped programming language interpreter.
@@ -12,23 +14,38 @@ public class chopped {
 
     /**
      * The main entry point of the program.
-     * Continuously reads user input from the console, lexes it into tokens, and parses the tokens.
-     * @param args Command-line arguments (not used).
+     * If a file is provided, executes it; otherwise, enters REPL.
+     * @param args Command-line arguments: optional file name.
      */
     public static void main(String[] args) {
-        // get text from user and send to parser
-        System.out.println("Welcome to the chopped parser!");
-        Scanner scanner = new Scanner(System.in);
-        while (true) {
-            System.out.print("Chopped > ");
-            String programText = scanner.nextLine();
+        if (args.length > 0) {
             try {
-                Lexer.lexar(programText);
+                String fileName = args[0];
+                String content = new String(Files.readAllBytes(Paths.get(fileName)));
+                Lexer.lexar(content);
             } catch (Exception e) {
-                System.out.println("Error: " + e.getMessage());
+                System.out.println("Error reading file: " + e.getMessage());
             }
+        } else {
+            System.out.println("Welcome to the chopped parser!");
+            Scanner scanner = new Scanner(System.in);
+            while (true) {
+                System.out.print("Chopped > ");
+                String programText = scanner.nextLine();
+                try {
+                    if (programText.startsWith("chopped ")) {
+                        String fileName = programText.substring(8).trim();
+                        String content = new String(Files.readAllBytes(Paths.get(fileName)));
+                        Lexer.lexar(content);
+                    } else {
+                        Lexer.lexar(programText);
+                    }
+                } catch (Exception e) {
+                    System.out.println("Error: " + e.getMessage());
+                }
+            }
+            // scanner.close(); // not reached
         }
-        // scanner.close(); // not reached
     }
 
     /**
@@ -81,8 +98,11 @@ public class chopped {
                 } else if (c == '+' || c == '-' || c == '*' || c == '/' || c == '<' || c == '>' || c == '(' || c == ')' || c == '!' || c == '?' || c == '.') {
                     tokenArray.add(new Token(String.valueOf(c)));
                     i++;
+                } else if (c == '\n') {
+                    tokenArray.add(new Token("\n"));
+                    i++;
                 } else {
-                    // Skip whitespace or invalid characters
+                    // Skip other whitespace or invalid characters
                     i++;
                 }
             }
@@ -148,6 +168,9 @@ public static class Token {
                         break;
                     case "times":
                         this.TokenType = "KEYWORD:TIMES";
+                        break;
+                    case "chopped":
+                        this.TokenType = "KEYWORD:CHOPPED";
                         break;
                     case "+":
                         this.TokenType = "OPERATOR:PLUS";
@@ -229,26 +252,35 @@ public static class Token {
         private static Map<String, Object> variables = new HashMap<>();
 
         /**
-         * Parses the list of tokens, either as a say statement, if statement, for loop, or an expression.
+         * Parses the list of tokens, handling multiple statements.
          * @param tokenArray The list of tokens to parse.
          */
         private static void parse(List<Token> tokenArray) {
             tokens = tokenArray;
             pos = 0;
-            try {
-                if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:SAY")) {
-                    parseSay(true);
-                } else if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:IF")) {
-                    parseIf();
-                } else if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:SET")) {
-                    parseSet();
-                } else if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:FOR")) {
-                    parseFor();
-                } else {
-                    parseExpr(true);
+            while (pos < tokens.size()) {
+                if (tokens.get(pos).TokenType.equals("\n")) {
+                    pos++;
+                    continue;
                 }
-            } catch (Exception e) {
-                System.out.println("Parse error: " + e.getMessage());
+                try {
+                    if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:SAY")) {
+                        parseSay(true);
+                    } else if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:IF")) {
+                        parseIf();
+                    } else if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:SET")) {
+                        parseSet();
+                    } else if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:FOR")) {
+                        parseFor();
+                    } else if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:CHOPPED")) {
+                        parseChopped();
+                    } else if (pos < tokens.size()) {
+                        parseExpr(true);
+                    }
+                } catch (Exception e) {
+                    System.out.println("Parse error: " + e.getMessage());
+                    break; // stop on error
+                }
             }
         }
 
@@ -279,7 +311,7 @@ public static class Token {
                         if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:SAY")) {
                             parseSay(execute);
                         } else {
-                            Object result2 = parseExpr(execute);
+                            parseExpr(execute);
                         }
                     }
                 }
@@ -367,6 +399,38 @@ public static class Token {
             for (int i = 0; i < count; i++) {
                 pos = startPos;
                 parseStatement(true);
+            }
+        }
+
+        /**
+         * Parses a chopped statement: chopped "filename" or chopped filename.
+         */
+        private static void parseChopped() {
+            pos++; // consume chopped
+            String fileName;
+            if (pos < tokens.size() && tokens.get(pos).TokenType.equals("STRING")) {
+                fileName = tokens.get(pos).TokenValue;
+                pos++;
+            } else if (pos < tokens.size() && tokens.get(pos).TokenType.equals("IDENTIFIER")) {
+                StringBuilder sb = new StringBuilder(tokens.get(pos).TokenValue);
+                pos++;
+                if (pos < tokens.size() && tokens.get(pos).TokenType.equals("PUNCTUATION:PERIOD")) {
+                    sb.append(".");
+                    pos++;
+                    if (pos < tokens.size() && tokens.get(pos).TokenType.equals("IDENTIFIER")) {
+                        sb.append(tokens.get(pos).TokenValue);
+                        pos++;
+                    }
+                }
+                fileName = sb.toString();
+            } else {
+                throw new RuntimeException("Expected file name after chopped");
+            }
+            try {
+                String content = new String(Files.readAllBytes(Paths.get(fileName)));
+                Lexer.lexar(content);
+            } catch (Exception e) {
+                throw new RuntimeException("Error reading file: " + e.getMessage());
             }
         }
 
@@ -500,8 +564,11 @@ public static class Token {
             } else if (t.TokenType.equals("STRING")) {
                 return t.TokenValue;
             } else if (t.TokenType.equals("IDENTIFIER")) {
-                if (!variables.containsKey(t.TokenValue)) throw new RuntimeException("Undefined variable: " + t.TokenValue);
-                return variables.get(t.TokenValue);
+                if (variables.containsKey(t.TokenValue)) {
+                    return variables.get(t.TokenValue);
+                } else {
+                    return t.TokenValue;
+                }
             } else if (t.TokenType.equals("LPAREN")) {
                 Object val = parseExpr();
                 if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("RPAREN")) throw new RuntimeException("Missing )");
