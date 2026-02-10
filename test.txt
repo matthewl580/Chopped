@@ -1,0 +1,2 @@
+set pizza to 6
+for pizza-3 times say "me"

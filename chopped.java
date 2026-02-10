@@ -143,6 +143,12 @@ public static class Token {
                     case "to":
                         this.TokenType = "KEYWORD:TO";
                         break;
+                    case "for":
+                        this.TokenType = "KEYWORD:FOR";
+                        break;
+                    case "times":
+                        this.TokenType = "KEYWORD:TIMES";
+                        break;
                     case "+":
                         this.TokenType = "OPERATOR:PLUS";
                         break;
@@ -223,7 +229,7 @@ public static class Token {
         private static Map<String, Object> variables = new HashMap<>();
 
         /**
-         * Parses the list of tokens, either as a say statement, if statement, or an expression.
+         * Parses the list of tokens, either as a say statement, if statement, for loop, or an expression.
          * @param tokenArray The list of tokens to parse.
          */
         private static void parse(List<Token> tokenArray) {
@@ -236,6 +242,8 @@ public static class Token {
                     parseIf();
                 } else if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:SET")) {
                     parseSet();
+                } else if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:FOR")) {
+                    parseFor();
                 } else {
                     parseExpr(true);
                 }
@@ -252,40 +260,50 @@ public static class Token {
         }
 
         /**
-         * Parses a say statement: say message.
+         * Parses a say statement: say message [if condition [otherwise [say] message]].
          * @param execute Whether to print the message.
          */
         private static void parseSay(boolean execute) {
             pos++; // consume say
-            StringBuilder message = new StringBuilder();
-            while (pos < tokens.size()) {
-                Token t = tokens.get(pos);
-                if (t.TokenType.startsWith("KEYWORD")) break;
-                if (t.TokenType.startsWith("PUNCTUATION")) {
-                    message.append(t.TokenValue);
-                } else if (t.TokenType.equals("IDENTIFIER")) {
-                    if (variables.containsKey(t.TokenValue)) {
-                        message.append(variables.get(t.TokenValue));
-                    } else {
-                        message.append(t.TokenValue);
+            Object result = parseExpr(false);
+            if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:IF")) {
+                pos++; // consume if
+                boolean condition = parseCondition();
+                if (condition) {
+                    if (execute) {
+                        printMessage(result);
                     }
                 } else {
-                    message.append(t.TokenValue);
-                }
-                pos++;
-                if (pos < tokens.size() && !tokens.get(pos).TokenType.startsWith("KEYWORD")) message.append(" ");
-            }
-            String msg = message.toString().trim();
-            if (execute) {
-                if (msg.length() >= 1 && (msg.charAt(msg.length() - 1) == '.' || msg.charAt(msg.length() - 1) == '!' || msg.charAt(msg.length() - 1) == '?')) {
-                    if (msg.length() >= 2 && msg.charAt(msg.length() - 1) == msg.charAt(msg.length() - 2)) {
-                        System.out.println(msg.substring(0, msg.length() - 1));
-                    } else {
-                        System.out.println(msg);
+                    if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:OTHERWISE")) {
+                        pos++; // consume otherwise
+                        if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:SAY")) {
+                            parseSay(execute);
+                        } else {
+                            Object result2 = parseExpr(execute);
+                        }
                     }
+                }
+            } else {
+                if (execute) {
+                    printMessage(result);
+                }
+            }
+        }
+
+        /**
+         * Prints the message with punctuation handling.
+         * @param result The object to print.
+         */
+        private static void printMessage(Object result) {
+            String msg = result.toString();
+            if (msg.length() >= 1 && (msg.charAt(msg.length() - 1) == '.' || msg.charAt(msg.length() - 1) == '!' || msg.charAt(msg.length() - 1) == '?')) {
+                if (msg.length() >= 2 && msg.charAt(msg.length() - 1) == msg.charAt(msg.length() - 2)) {
+                    System.out.println(msg.substring(0, msg.length() - 1));
                 } else {
                     System.out.println(msg);
                 }
+            } else {
+                System.out.println(msg);
             }
         }
 
@@ -329,14 +347,31 @@ public static class Token {
                     variables.put(varName, variables.get(next.TokenValue));
                     pos++;
                 } else {
-                    double value = parseExpr(false);
+                    Object value = parseExpr(false);
                     variables.put(varName, value);
                 }
             }
         }
 
         /**
-         * Parses a statement: either say, if, set, or expression.
+         * Parses a for loop: for count times statement.
+         */
+        private static void parseFor() {
+            pos++; // consume for
+            Object countObj = parseExpr(false);
+            if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("KEYWORD:TIMES")) throw new RuntimeException("Expected 'times' after count");
+            pos++; // consume times
+            if (!(countObj instanceof Double)) throw new RuntimeException("Loop count must be numeric");
+            int count = ((Double) countObj).intValue();
+            int startPos = pos;
+            for (int i = 0; i < count; i++) {
+                pos = startPos;
+                parseStatement(true);
+            }
+        }
+
+        /**
+         * Parses a statement: either say, if, set, for, or expression.
          * @param execute Whether to execute the statement (print output).
          */
         private static void parseStatement(boolean execute) {
@@ -346,8 +381,10 @@ public static class Token {
                 parseIf();
             } else if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:SET")) {
                 parseSet();
+            } else if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:FOR")) {
+                parseFor();
             } else {
-                double result = parseExpr(execute);
+                Object result = parseExpr(execute);
             }
         }
 
@@ -362,11 +399,15 @@ public static class Token {
                 hasParen = true;
                 pos++;
             }
-            double left = parseExpr(false);
+            Object leftObj = parseExpr(false);
+            if (!(leftObj instanceof Double)) throw new RuntimeException("Condition must be numeric");
+            double left = (Double) leftObj;
             if (pos >= tokens.size()) throw new RuntimeException("Expected comparison operator");
             String op = tokens.get(pos).TokenType;
             pos++;
-            double right = parseExpr(false);
+            Object rightObj = parseExpr(false);
+            if (!(rightObj instanceof Double)) throw new RuntimeException("Condition must be numeric");
+            double right = (Double) rightObj;
             if (hasParen) {
                 if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("RPAREN")) throw new RuntimeException("Expected )");
                 pos++;
@@ -384,7 +425,7 @@ public static class Token {
          * Parses an expression, handling addition and subtraction.
          * @return The evaluated result of the expression.
          */
-        private static double parseExpr() {
+        private static Object parseExpr() {
             return parseExpr(true);
         }
 
@@ -393,16 +434,37 @@ public static class Token {
          * @param execute Whether to print the result.
          * @return The evaluated result of the expression.
          */
-        private static double parseExpr(boolean execute) {
-            double left = parseTerm();
+        private static Object parseExpr(boolean execute) {
+            Object left = parseTerm();
             while (pos < tokens.size() && (tokens.get(pos).TokenType.equals("OPERATOR:PLUS") || tokens.get(pos).TokenType.equals("OPERATOR:MINUS"))) {
                 String op = tokens.get(pos).TokenType;
                 pos++;
-                double right = parseTerm();
-                if (op.equals("OPERATOR:PLUS")) left += right;
-                else left -= right;
+                Object right = parseTerm();
+                if (op.equals("OPERATOR:PLUS")) {
+                    if (left instanceof Double && right instanceof Double) {
+                        left = (Double) left + (Double) right;
+                    } else if (left instanceof String || right instanceof String) {
+                        left = left.toString() + right.toString();
+                    } else {
+                        throw new RuntimeException("Invalid operands for +");
+                    }
+                } else if (op.equals("OPERATOR:MINUS")) {
+                    if (left instanceof Double && right instanceof Double) {
+                        left = (Double) left - (Double) right;
+                    } else {
+                        throw new RuntimeException("Invalid operands for -");
+                    }
+                }
             }
-            if (execute) System.out.println("Result: " + left);
+            if (execute) {
+                if (left instanceof Double) {
+                    System.out.println("Result: " + left);
+                } else if (left instanceof String) {
+                    System.out.println(left);
+                } else if (left == null) {
+                    // do nothing
+                }
+            }
             return left;
         }
 
@@ -410,35 +472,38 @@ public static class Token {
          * Parses a term, handling multiplication and division.
          * @return The evaluated result of the term.
          */
-        private static double parseTerm() {
-            double left = parseFactor();
+        private static Object parseTerm() {
+            Object left = parseFactor();
             while (pos < tokens.size() && (tokens.get(pos).TokenType.equals("OPERATOR:MULTIPLY") || tokens.get(pos).TokenType.equals("OPERATOR:DIVIDE"))) {
                 String op = tokens.get(pos).TokenType;
                 pos++;
-                double right = parseFactor();
-                if (op.equals("OPERATOR:MULTIPLY")) left *= right;
-                else left /= right;
+                Object right = parseFactor();
+                if (!(left instanceof Double) || !(right instanceof Double)) throw new RuntimeException("Operands for * / must be numbers");
+                double l = (Double) left;
+                double r = (Double) right;
+                if (op.equals("OPERATOR:MULTIPLY")) left = l * r;
+                else left = l / r;
             }
             return left;
         }
 
         /**
-         * Parses a factor, which can be a number, identifier, or a parenthesized expression.
+         * Parses a factor, which can be a number, string, identifier, or a parenthesized expression.
          * @return The evaluated result of the factor.
          */
-        private static double parseFactor() {
+        private static Object parseFactor() {
             if (pos >= tokens.size()) throw new RuntimeException("Unexpected end of input");
             Token t = tokens.get(pos);
             pos++;
             if (t.TokenType.equals("NUMBER")) {
                 return Double.parseDouble(t.TokenValue);
+            } else if (t.TokenType.equals("STRING")) {
+                return t.TokenValue;
             } else if (t.TokenType.equals("IDENTIFIER")) {
                 if (!variables.containsKey(t.TokenValue)) throw new RuntimeException("Undefined variable: " + t.TokenValue);
-                Object val = variables.get(t.TokenValue);
-                if (!(val instanceof Double)) throw new RuntimeException("Variable " + t.TokenValue + " is not a number");
-                return (Double) val;
+                return variables.get(t.TokenValue);
             } else if (t.TokenType.equals("LPAREN")) {
-                double val = parseExpr();
+                Object val = parseExpr();
                 if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("RPAREN")) throw new RuntimeException("Missing )");
                 pos++;
                 return val;
