@@ -138,7 +138,7 @@ public static class Token {
                     this.TokenValue = text.substring(1, text.length() - 1);
                     return;
                 }
-                switch (text) {
+                switch (text.toLowerCase()) {
                     case "if":
                         this.TokenType = "KEYWORD:IF";
                         break;
@@ -162,9 +162,6 @@ public static class Token {
                         break;
                     case "to":
                         this.TokenType = "KEYWORD:TO";
-                        break;
-                    case "for":
-                        this.TokenType = "KEYWORD:FOR";
                         break;
                     case "times":
                         this.TokenType = "KEYWORD:TIMES";
@@ -277,8 +274,6 @@ public static class Token {
                         parseIf();
                     } else if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:SET")) {
                         parseSet();
-                    } else if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:FOR")) {
-                        parseFor();
                     } else if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:CHOPPED")) {
                         parseChopped();
                     } else if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:REPEAT")) {
@@ -301,7 +296,7 @@ public static class Token {
         }
 
         /**
-         * Parses a say statement: say message [if condition [otherwise [say] message]].
+         * Parses a say statement: say message [if condition [otherwise [say] message]] [count times].
          * @param execute Whether to print the message.
          */
         private static void parseSay(boolean execute) {
@@ -311,8 +306,17 @@ public static class Token {
                 pos++; // consume if
                 boolean condition = parseCondition();
                 if (condition) {
+                    Object countObj = null;
+                    if (pos < tokens.size() && (tokens.get(pos).TokenType.equals("NUMBER") || tokens.get(pos).TokenType.equals("IDENTIFIER") || tokens.get(pos).TokenType.equals("LPAREN"))) {
+                        countObj = parseExpr(false);
+                        if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("KEYWORD:TIMES")) throw new RuntimeException("Expected 'times' after count");
+                        pos++; // consume times
+                    }
+                    int loopCount = countObj == null ? 1 : ((Double) countObj).intValue();
                     if (execute) {
-                        printMessage(result);
+                        for (int i = 0; i < loopCount; i++) {
+                            printMessage(result);
+                        }
                     }
                 } else {
                     if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:OTHERWISE")) {
@@ -402,46 +406,31 @@ public static class Token {
             }
         }
 
-        /**
-         * Parses a for loop: for count times statement.
-         */
-        private static void parseFor() {
-            pos++; // consume for
-            Object countObj = parseExpr(false);
-            if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("KEYWORD:TIMES")) throw new RuntimeException("Expected 'times' after count");
-            pos++; // consume times
-            if (!(countObj instanceof Double)) throw new RuntimeException("Loop count must be numeric");
-            int count = ((Double) countObj).intValue();
-            int startPos = pos;
-            for (int i = 0; i < count; i++) {
-                pos = startPos;
-                parseStatement(true);
-            }
-        }
+
 
         /**
          * Parses a repeat loop: repeat [code] [count] times or repeat [count] times [code].
          */
         private static void parseRepeat() {
             pos++; // consume repeat
+            Object countObj;
             int startPos;
             int endPos;
-            Object countObj;
-            if (pos < tokens.size() && (tokens.get(pos).TokenType.startsWith("KEYWORD:") || tokens.get(pos).TokenType.equals("IDENTIFIER"))) {
-                // Form 1: repeat [code] [count] times
-                startPos = pos;
-                parseStatement(false); // parse the code without executing
-                countObj = parseExpr(false);
-                if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("KEYWORD:TIMES")) throw new RuntimeException("Expected 'times' after count");
-                pos++; // consume times
-                endPos = pos;
-            } else {
+            if (pos < tokens.size() && (tokens.get(pos).TokenType.equals("NUMBER") || tokens.get(pos).TokenType.equals("IDENTIFIER"))) {
                 // Form 2: repeat [count] times [code]
                 countObj = parseExpr(false);
                 if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("KEYWORD:TIMES")) throw new RuntimeException("Expected 'times' after count");
                 pos++; // consume times
                 startPos = pos;
                 parseStatement(false); // parse the code without executing
+                endPos = pos;
+            } else {
+                // Form 1: repeat [code] [count] times
+                startPos = pos;
+                parseStatement(false); // parse the code without executing
+                countObj = parseExpr(false);
+                if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("KEYWORD:TIMES")) throw new RuntimeException("Expected 'times' after count");
+                pos++; // consume times
                 endPos = pos;
             }
             if (!(countObj instanceof Double)) throw new RuntimeException("Loop count must be numeric");
@@ -486,7 +475,7 @@ public static class Token {
         }
 
         /**
-         * Parses a statement: either say, if, set, for, or expression.
+         * Parses a statement: either say, if, set, or expression.
          * @param execute Whether to execute the statement (print output).
          */
         private static void parseStatement(boolean execute) {
@@ -496,8 +485,6 @@ public static class Token {
                 parseIf();
             } else if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:SET")) {
                 parseSet();
-            } else if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:FOR")) {
-                parseFor();
             } else {
                 Object result = parseExpr(execute);
             }
