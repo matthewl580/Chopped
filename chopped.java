@@ -172,6 +172,12 @@ public static class Token {
                     case "chopped":
                         this.TokenType = "KEYWORD:CHOPPED";
                         break;
+                    case "repeat":
+                        this.TokenType = "KEYWORD:REPEAT";
+                        break;
+                    case "ask":
+                        this.TokenType = "KEYWORD:ASK";
+                        break;
                     case "+":
                         this.TokenType = "OPERATOR:PLUS";
                         break;
@@ -250,6 +256,7 @@ public static class Token {
         private static List<Token> tokens;
         private static int pos;
         private static Map<String, Object> variables = new HashMap<>();
+        private static Scanner inputScanner = new Scanner(System.in);
 
         /**
          * Parses the list of tokens, handling multiple statements.
@@ -274,6 +281,8 @@ public static class Token {
                         parseFor();
                     } else if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:CHOPPED")) {
                         parseChopped();
+                    } else if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:REPEAT")) {
+                        parseRepeat();
                     } else if (pos < tokens.size()) {
                         parseExpr(true);
                     }
@@ -358,7 +367,7 @@ public static class Token {
         }
 
         /**
-         * Parses a set statement: set var to value (string, identifier, or expression).
+         * Parses a set statement: set var to value (string, identifier, expression, or ask string).
          */
         private static void parseSet() {
             pos++; // consume set
@@ -369,7 +378,15 @@ public static class Token {
             pos++; // consume to
             if (pos < tokens.size()) {
                 Token next = tokens.get(pos);
-                if (next.TokenType.equals("STRING")) {
+                if (next.TokenType.equals("KEYWORD:ASK")) {
+                    pos++; // consume ask
+                    if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("STRING")) throw new RuntimeException("Expected string after ask");
+                    String prompt = tokens.get(pos).TokenValue;
+                    pos++;
+                    System.out.print(prompt + " ");
+                    String input = inputScanner.nextLine();
+                    variables.put(varName, input);
+                } else if (next.TokenType.equals("STRING")) {
                     variables.put(varName, next.TokenValue);
                     pos++;
                 } else if (next.TokenType.equals("IDENTIFIER")) {
@@ -400,6 +417,40 @@ public static class Token {
                 pos = startPos;
                 parseStatement(true);
             }
+        }
+
+        /**
+         * Parses a repeat loop: repeat [code] [count] times or repeat [count] times [code].
+         */
+        private static void parseRepeat() {
+            pos++; // consume repeat
+            int startPos;
+            int endPos;
+            Object countObj;
+            if (pos < tokens.size() && (tokens.get(pos).TokenType.startsWith("KEYWORD:") || tokens.get(pos).TokenType.equals("IDENTIFIER"))) {
+                // Form 1: repeat [code] [count] times
+                startPos = pos;
+                parseStatement(false); // parse the code without executing
+                countObj = parseExpr(false);
+                if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("KEYWORD:TIMES")) throw new RuntimeException("Expected 'times' after count");
+                pos++; // consume times
+                endPos = pos;
+            } else {
+                // Form 2: repeat [count] times [code]
+                countObj = parseExpr(false);
+                if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("KEYWORD:TIMES")) throw new RuntimeException("Expected 'times' after count");
+                pos++; // consume times
+                startPos = pos;
+                parseStatement(false); // parse the code without executing
+                endPos = pos;
+            }
+            if (!(countObj instanceof Double)) throw new RuntimeException("Loop count must be numeric");
+            int count = ((Double) countObj).intValue();
+            for (int i = 0; i < count; i++) {
+                pos = startPos;
+                parseStatement(true);
+            }
+            pos = endPos;
         }
 
         /**

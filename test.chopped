@@ -1,0 +1,5 @@
+set numapple to ask "How many apples do you want?"
+say "You want " + numapple + " apples."
+repeat 2 times say "Banana!"
+repeat say "Apple!" 3 times
+
