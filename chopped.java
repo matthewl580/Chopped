@@ -27,7 +27,7 @@ public class chopped {
                 System.out.println("Error reading file: " + e.getMessage());
             }
         } else {
-            System.out.println("Welcome to the chopped parser!");
+            System.out.println("Welcome to the chopped parser! \n");
             Scanner scanner = new Scanner(System.in);
             while (true) {
                 System.out.print("Chopped > ");
@@ -45,6 +45,194 @@ public class chopped {
                 }
             }
             // scanner.close(); // not reached
+        }
+    }
+
+    /**
+     * Represents a token in the Chopped language, which can be a keyword, operator, number, identifier, etc.
+     */
+    public static class Token {
+
+        private String TokenValue;
+        private String TokenType;
+
+        /**
+         * Constructs a Token from the given text, determining its type.
+         * @param text The string representation of the token.
+         */
+        public Token(String text) {
+            this.TokenValue = text;
+            if (isNumeric(text)) {
+                this.TokenType = "NUMBER";
+                return;
+            }
+            if (text.startsWith("\"") && text.endsWith("\"")) {
+                this.TokenType = "STRING";
+                this.TokenValue = text.substring(1, text.length() - 1);
+                return;
+            }
+            switch (text.toLowerCase()) {
+                case "if":
+                    this.TokenType = "KEYWORD:IF";
+                    this.TokenValue = text.toLowerCase();
+                    break;
+                case "then":
+                    this.TokenType = "KEYWORD:THEN";
+                    this.TokenValue = text.toLowerCase();
+                    break;
+                case "do":
+                    this.TokenType = "KEYWORD:DO";
+                    this.TokenValue = text.toLowerCase();
+                    break;
+                case "say":
+                    this.TokenType = "KEYWORD:SAY";
+                    this.TokenValue = text.toLowerCase();
+                    break;
+                case "otherwise":
+                    this.TokenType = "KEYWORD:OTHERWISE";
+                    this.TokenValue = text.toLowerCase();
+                    break;
+                case "or": // first part in an ELSE statement (or if)
+                    this.TokenType = "KEYWORD:OR";
+                    this.TokenValue = text.toLowerCase();
+                    break;
+                case "set":
+                    this.TokenType = "KEYWORD:SET";
+                    this.TokenValue = text.toLowerCase();
+                    break;
+                case "to":
+                    this.TokenType = "KEYWORD:TO";
+                    this.TokenValue = text.toLowerCase();
+                    break;
+                case "times":
+                    this.TokenType = "KEYWORD:TIMES";
+                    this.TokenValue = text.toLowerCase();
+                    break;
+                case "chopped":
+                    this.TokenType = "KEYWORD:CHOPPED";
+                    this.TokenValue = text.toLowerCase();
+                    break;
+                case "repeat":
+                    this.TokenType = "KEYWORD:REPEAT";
+                    this.TokenValue = text.toLowerCase();
+                    break;
+                case "ask":
+                    this.TokenType = "KEYWORD:ASK";
+                    this.TokenValue = text.toLowerCase();
+                    break;
+                case "cook":
+                    this.TokenType = "KEYWORD:COOK";
+                    this.TokenValue = text.toLowerCase();
+                    break;
+                case "using":
+                    this.TokenType = "KEYWORD:USING";
+                    this.TokenValue = text.toLowerCase();
+                    break;
+                case "by":
+                    this.TokenType = "KEYWORD:BY";
+                    this.TokenValue = text.toLowerCase();
+                    break;
+                case "serve":
+                    this.TokenType = "KEYWORD:SERVE";
+                    this.TokenValue = text.toLowerCase();
+                    break;
+                case "with":
+                    this.TokenType = "KEYWORD:WITH";
+                    this.TokenValue = text.toLowerCase();
+                    break;
+                case "as":
+                    this.TokenType = "KEYWORD:AS";
+                    this.TokenValue = text.toLowerCase();
+                    break;
+                case "nothing":
+                    this.TokenType = "KEYWORD:NOTHING";
+                    this.TokenValue = text.toLowerCase();
+                    break;
+                case "+":
+                    this.TokenType = "OPERATOR:PLUS";
+                    this.TokenValue = text;
+                    break;
+                case "-":
+                    this.TokenType = "OPERATOR:MINUS";
+                    this.TokenValue = text;
+                    break;
+                case "*":
+                    this.TokenType = "OPERATOR:MULTIPLY";
+                    this.TokenValue = text;
+                    break;
+                case "/":
+                    this.TokenType = "OPERATOR:DIVIDE";
+                    this.TokenValue = text;
+                    break;
+                case "==":
+                    this.TokenType = "OPERATOR:EQUAL";
+                    this.TokenValue = text;
+                    break;
+                case "!=":
+                    this.TokenType = "OPERATOR:NOT_EQUAL";
+                    this.TokenValue = text;
+                    break;
+                case "<":
+                    this.TokenType = "OPERATOR:LESS";
+                    this.TokenValue = text;
+                    break;
+                case ">":
+                    this.TokenType = "OPERATOR:GREATER";
+                    this.TokenValue = text;
+                    break;
+                case "(":
+                    this.TokenType = "LPAREN";
+                    this.TokenValue = text;
+                    break;
+                case ")":
+                    this.TokenType = "RPAREN";
+                    this.TokenValue = text;
+                    break;
+                case "!":
+                    this.TokenType = "PUNCTUATION:EXCLAMATION";
+                    this.TokenValue = text;
+                    break;
+                case "?":
+                    this.TokenType = "PUNCTUATION:QUESTION";
+                    this.TokenValue = text;
+                    break;
+                case ".":
+                    this.TokenType = "PUNCTUATION:PERIOD";
+                    this.TokenValue = text;
+                    break;
+                case ",":
+                    this.TokenType = ",";
+                    this.TokenValue = text;
+                    break;
+
+                default:
+                    this.TokenType = "IDENTIFIER";
+                    this.TokenValue = text;
+                    break;
+            }
+        }
+
+        /**
+         * Helper method to check if a string represents a numeric value.
+         * @param str The string to check.
+         * @return true if the string is numeric, false otherwise.
+         */
+        private static boolean isNumeric(String str) {
+            if (str == null || str.isEmpty())
+                return false;
+            for (char c : str.toCharArray()) {
+                if (!Character.isDigit(c))
+                    return false;
+            }
+            return true;
+        }
+
+        /**
+         * Returns a string representation of the token.
+         * @return A formatted string showing the token type and value.
+         */
+        public String toString() {
+            return "(" + this.TokenType + ": " + this.TokenValue + ")";
         }
     }
 
@@ -107,7 +295,10 @@ public class chopped {
                 } else if (c == '!' && i + 1 < text.length() && text.charAt(i + 1) == '=') {
                     tokenArray.add(new Token("!="));
                     i += 2;
-                } else if (c == '+' || c == '-' || c == '*' || c == '/' || c == '<' || c == '>' || c == '(' || c == ')' || c == '!' || c == '?' || c == '.') {
+                } else if (c == '=') {
+                    tokenArray.add(new Token("="));
+                    i++;
+                } else if (c == '+' || c == '-' || c == '*' || c == '/' || c == '<' || c == '>' || c == '(' || c == ')' || c == '!' || c == '?' || c == '.' || c == ',') {
                     tokenArray.add(new Token(String.valueOf(c)));
                     i++;
                 } else if (c == '\n') {
@@ -126,137 +317,6 @@ public class chopped {
         // identifier, or a literal value.
 
     }
-
-/**
- * Represents a token in the Chopped language, which can be a keyword, operator, number, identifier, etc.
- */
-public static class Token {
-
-            private String TokenValue;
-            private String TokenType;
-
-            /**
-             * Constructs a Token from the given text, determining its type.
-             * @param text The string representation of the token.
-             */
-            public Token(String text) {
-                if (isNumeric(text)) {
-                    this.TokenType = "NUMBER";
-                    this.TokenValue = text;
-                    return;
-                }
-                if (text.startsWith("\"") && text.endsWith("\"")) {
-                    this.TokenType = "STRING";
-                    this.TokenValue = text.substring(1, text.length() - 1);
-                    return;
-                }
-                switch (text.toLowerCase()) {
-                    case "if":
-                        this.TokenType = "KEYWORD:IF";
-                        break;
-                    case "then":
-                        this.TokenType = "KEYWORD:THEN";
-                        break;
-                    case "do":
-                        this.TokenType = "KEYWORD:DO";
-                        break;
-                    case "say":
-                        this.TokenType = "KEYWORD:SAY";
-                        break;
-                    case "otherwise":
-                        this.TokenType = "KEYWORD:OTHERWISE";
-                        break;
-                    case "or": // first part in an ELSE statement (or if)
-                        this.TokenType = "KEYWORD:OR";
-                        break;
-                    case "set":
-                        this.TokenType = "KEYWORD:SET";
-                        break;
-                    case "to":
-                        this.TokenType = "KEYWORD:TO";
-                        break;
-                    case "times":
-                        this.TokenType = "KEYWORD:TIMES";
-                        break;
-                    case "chopped":
-                        this.TokenType = "KEYWORD:CHOPPED";
-                        break;
-                    case "repeat":
-                        this.TokenType = "KEYWORD:REPEAT";
-                        break;
-                    case "ask":
-                        this.TokenType = "KEYWORD:ASK";
-                        break;
-                    case "+":
-                        this.TokenType = "OPERATOR:PLUS";
-                        break;
-                    case "-":
-                        this.TokenType = "OPERATOR:MINUS";
-                        break;
-                    case "*":
-                        this.TokenType = "OPERATOR:MULTIPLY";
-                        break;
-                    case "/":
-                        this.TokenType = "OPERATOR:DIVIDE";
-                        break;
-                    case "==":
-                        this.TokenType = "OPERATOR:EQUAL";
-                        break;
-                    case "!=":
-                        this.TokenType = "OPERATOR:NOT_EQUAL";
-                        break;
-                    case "<":
-                        this.TokenType = "OPERATOR:LESS";
-                        break;
-                    case ">":
-                        this.TokenType = "OPERATOR:GREATER";
-                        break;
-                    case "(":
-                        this.TokenType = "LPAREN";
-                        break;
-                    case ")":
-                        this.TokenType = "RPAREN";
-                        break;
-                    case "!":
-                        this.TokenType = "PUNCTUATION:EXCLAMATION";
-                        break;
-                    case "?":
-                        this.TokenType = "PUNCTUATION:QUESTION";
-                        break;
-                    case ".":
-                        this.TokenType = "PUNCTUATION:PERIOD";
-                        break;
-
-                    default:
-                        this.TokenType = "IDENTIFIER";
-                        this.TokenValue = text;
-                        break;
-                }
-            }
-
-            /**
-             * Helper method to check if a string represents a numeric value.
-             * @param str The string to check.
-             * @return true if the string is numeric, false otherwise.
-             */
-            private static boolean isNumeric(String str) {
-                if (str == null || str.isEmpty())
-                    return false;
-                for (char c : str.toCharArray()) {
-                    if (!Character.isDigit(c))
-                        return false;
-                }
-                return true;
-            }
-
-            /**
-             * Returns a string representation of the token.
-             * @return A formatted string showing the token type and value.
-             */
-            public String toString() {
-                return "(" + this.TokenType + ": " + this.TokenValue + ")";
-            }
-        }
     /**
      * The Parser class is responsible for parsing the list of tokens into executable code.
      * It supports arithmetic expressions and if statements with conditions.
@@ -265,7 +325,24 @@ public static class Token {
         private static List<Token> tokens;
         private static int pos;
         private static Map<String, Object> variables = new HashMap<>();
+        private static Map<String, Function> functions = new HashMap<>();
         private static Scanner inputScanner = new Scanner(System.in);
+
+        private static class Function {
+            String name;
+            List<String> params;
+            Map<String, Object> defaults;
+            List<Token> body;
+            Object returnValue;
+
+            Function(String name, List<String> params, Map<String, Object> defaults, List<Token> body, Object returnValue) {
+                this.name = name;
+                this.params = params;
+                this.defaults = defaults;
+                this.body = body;
+                this.returnValue = returnValue;
+            }
+        }
 
         /**
          * Parses the list of tokens, handling multiple statements.
@@ -290,6 +367,10 @@ public static class Token {
                         parseChopped();
                     } else if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:REPEAT")) {
                         parseRepeat();
+                    } else if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:COOK")) {
+                        parseCook();
+                    } else if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:USING")) {
+                        parseCook();
                     } else if (pos < tokens.size()) {
                         parseExpr(true);
                     }
@@ -487,6 +568,84 @@ public static class Token {
         }
 
         /**
+         * Parses parameters: param1, param2=default, ...
+         */
+        private static void parseParams(List<String> params, Map<String, Object> defaults) {
+            while (pos < tokens.size() && tokens.get(pos).TokenType.equals("IDENTIFIER")) {
+                String param = tokens.get(pos).TokenValue;
+                params.add(param);
+                pos++;
+                if (pos < tokens.size() && tokens.get(pos).TokenType.equals("OPERATOR:EQUAL")) {
+                    pos++; // consume =
+                    Object defaultVal = parseExpr(false);
+                    defaults.put(param, defaultVal);
+                }
+                if (pos < tokens.size() && tokens.get(pos).TokenType.equals(",")) {
+                    pos++; // consume ,
+                } else {
+                    break;
+                }
+            }
+            if (pos < tokens.size() && tokens.get(pos).TokenType.equals(",")) {
+                pos++; // consume trailing ,
+            }
+        }
+
+        /**
+         * Parses a cook statement: cook [func name] using [params] by [code] serve [return]
+         * or using [params] cook [func name] by [code] serve [return]
+         */
+        private static void parseCook() {
+            String funcName;
+            List<String> params = new ArrayList<>();
+            Map<String, Object> defaults = new HashMap<>();
+            List<Token> body = new ArrayList<>();
+            Object returnValue = null;
+
+            boolean usingFirst = tokens.get(pos).TokenType.equals("KEYWORD:USING");
+            if (usingFirst) {
+                pos++; // consume using
+                parseParams(params, defaults);
+                if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("KEYWORD:COOK")) throw new RuntimeException("Expected 'cook' after params");
+                pos++; // consume cook
+            } else {
+                pos++; // consume cook
+            }
+
+            if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("IDENTIFIER")) throw new RuntimeException("Expected function name");
+            funcName = tokens.get(pos).TokenValue;
+            pos++;
+
+            if (!usingFirst) {
+                if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("KEYWORD:USING")) throw new RuntimeException("Expected 'using' after function name");
+                pos++; // consume using
+                parseParams(params, defaults);
+            }
+
+            if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("KEYWORD:BY")) throw new RuntimeException("Expected 'by' after params");
+            pos++; // consume by
+
+            // Parse body until serve
+            int startPos = pos;
+            while (pos < tokens.size() && !tokens.get(pos).TokenType.equals("KEYWORD:SERVE")) {
+                body.add(tokens.get(pos));
+                pos++;
+            }
+            if (pos >= tokens.size()) throw new RuntimeException("Expected 'serve' at end of function");
+            pos++; // consume serve
+
+            // Parse return value
+            if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:NOTHING")) {
+                returnValue = null;
+                pos++;
+            } else {
+                returnValue = parseExpr(false);
+            }
+
+            functions.put(funcName, new Function(funcName, params, defaults, body, returnValue));
+        }
+
+        /**
          * Parses a statement: either say, if, set, or expression.
          * @param execute Whether to execute the statement (print output).
          */
@@ -614,7 +773,9 @@ public static class Token {
             } else if (t.TokenType.equals("STRING")) {
                 return t.TokenValue;
             } else if (t.TokenType.equals("IDENTIFIER")) {
-                if (variables.containsKey(t.TokenValue)) {
+                if (functions.containsKey(t.TokenValue)) {
+                    return parseCall(t.TokenValue);
+                } else if (variables.containsKey(t.TokenValue)) {
                     return variables.get(t.TokenValue);
                 } else {
                     return t.TokenValue;
@@ -627,6 +788,67 @@ public static class Token {
             } else {
                 throw new RuntimeException("Unexpected token: " + t);
             }
+        }
+
+        /**
+         * Parses a function call: funcname with param as value, param2 as value2
+         * @param funcName The name of the function.
+         * @return The return value of the function.
+         */
+        private static Object parseCall(String funcName) {
+            Function func = functions.get(funcName);
+            if (func == null) throw new RuntimeException("Undefined function: " + funcName);
+
+            Map<String, Object> args = new HashMap<>();
+            if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:WITH")) {
+                pos++; // consume with
+                while (pos < tokens.size() && tokens.get(pos).TokenType.equals("IDENTIFIER")) {
+                    String param = tokens.get(pos).TokenValue;
+                    pos++;
+                    if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("KEYWORD:AS")) throw new RuntimeException("Expected 'as' after param");
+                    pos++; // consume as
+                    Object value = parseExpr(false);
+                    args.put(param, value);
+                    if (pos < tokens.size() && tokens.get(pos).TokenType.equals(",")) {
+                        pos++; // consume ,
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            // Set params
+            Map<String, Object> oldVars = new HashMap<>(variables);
+            for (int i = 0; i < func.params.size(); i++) {
+                String param = func.params.get(i);
+                if (args.containsKey(param)) {
+                    variables.put(param, args.get(param));
+                } else if (func.defaults.containsKey(param)) {
+                    variables.put(param, func.defaults.get(param));
+                } else {
+                    throw new RuntimeException("Missing argument for param: " + param);
+                }
+            }
+
+            // Execute body
+            int oldPos = pos;
+            List<Token> oldTokens = tokens;
+            tokens = func.body;
+            pos = 0;
+            while (pos < tokens.size()) {
+                if (tokens.get(pos).TokenType.equals("\n")) {
+                    pos++;
+                    continue;
+                }
+                parseStatement(true);
+            }
+
+            // Restore
+            tokens = oldTokens;
+            pos = oldPos;
+            variables = oldVars;
+
+            return func.returnValue;
         }
     }
 }

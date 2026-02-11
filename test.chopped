@@ -1,8 +1,5 @@
-set numapple to ask "How many apples do you want?"
-say "You want " + numapple + " apples."
-repeat 2 times say "Banana!"
-repeat say "Apple!" 3 times
+using dough, tomato, cook pizza by
+say "Making pizza with " + dough + " and " + tomato
+serve "Delicious pizza"
 
-YAP: Hello!
-
-yap: yippy
+pizza with dough as "flour", tomato as "sauce"
