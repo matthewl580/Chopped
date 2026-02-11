@@ -148,6 +148,14 @@ public class chopped {
                     this.TokenType = "KEYWORD:NOTHING";
                     this.TokenValue = text.toLowerCase();
                     break;
+                case "and":
+                    this.TokenType = "KEYWORD:AND";
+                    this.TokenValue = text.toLowerCase();
+                    break;
+                case "only":
+                    this.TokenType = "KEYWORD:ONLY";
+                    this.TokenValue = text.toLowerCase();
+                    break;
                 case "+":
                     this.TokenType = "OPERATOR:PLUS";
                     this.TokenValue = text;
@@ -302,7 +310,7 @@ public class chopped {
                     tokenArray.add(new Token(String.valueOf(c)));
                     i++;
                 } else if (c == '\n') {
-                  //  tokenArray.add(new Token("\n"));
+                    tokenArray.add(new Token("\n"));
                     i++;
                 } else {
                     // Skip other whitespace or invalid characters
@@ -333,14 +341,14 @@ public class chopped {
             List<String> params;
             Map<String, Object> defaults;
             List<Token> body;
-            Object returnValue;
+            List<Token> returnTokens;
 
-            Function(String name, List<String> params, Map<String, Object> defaults, List<Token> body, Object returnValue) {
+            Function(String name, List<String> params, Map<String, Object> defaults, List<Token> body, List<Token> returnTokens) {
                 this.name = name;
                 this.params = params;
                 this.defaults = defaults;
                 this.body = body;
-                this.returnValue = returnValue;
+                this.returnTokens = returnTokens;
             }
         }
 
@@ -568,10 +576,15 @@ public class chopped {
         }
 
         /**
-         * Parses parameters: param1, param2=default, ...
+         * Parses parameters: for 1 param: only param1
+         * for 2 params: param1 and param2
+         * for 3+ params: param1, param2, ..., and paramN
+         * Supports defaults: param=default
          */
         private static void parseParams(List<String> params, Map<String, Object> defaults) {
-            while (pos < tokens.size() && tokens.get(pos).TokenType.equals("IDENTIFIER")) {
+            if (pos < tokens.size() && tokens.get(pos).TokenValue.equals("only")) {
+                pos++; // consume only
+                if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("IDENTIFIER")) throw new RuntimeException("Expected parameter after 'only'");
                 String param = tokens.get(pos).TokenValue;
                 params.add(param);
                 pos++;
@@ -580,14 +593,37 @@ public class chopped {
                     Object defaultVal = parseExpr(false);
                     defaults.put(param, defaultVal);
                 }
-                if (pos < tokens.size() && tokens.get(pos).TokenType.equals(",")) {
-                    pos++; // consume ,
-                } else {
-                    break;
+            } else {
+                List<String> tempParams = new ArrayList<>();
+                while (pos < tokens.size()) {
+                    if (tokens.get(pos).TokenType.equals("IDENTIFIER")) {
+                        String param = tokens.get(pos).TokenValue;
+                        tempParams.add(param);
+                        pos++;
+                        if (pos < tokens.size() && tokens.get(pos).TokenType.equals("OPERATOR:EQUAL")) {
+                            pos++; // consume =
+                            Object defaultVal = parseExpr(false);
+                            defaults.put(param, defaultVal);
+                        }
+                    } else if (tokens.get(pos).TokenValue.equals("and")) {
+                        pos++; // consume and
+                        if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("IDENTIFIER")) throw new RuntimeException("Expected parameter after 'and'");
+                        String param = tokens.get(pos).TokenValue;
+                        tempParams.add(param);
+                        pos++;
+                        if (pos < tokens.size() && tokens.get(pos).TokenType.equals("OPERATOR:EQUAL")) {
+                            pos++; // consume =
+                            Object defaultVal = parseExpr(false);
+                            defaults.put(param, defaultVal);
+                        }
+                        break; // "and" indicates the last param
+                    } else if (tokens.get(pos).TokenType.equals(",")) {
+                        pos++; // consume ,
+                    } else {
+                        break;
+                    }
                 }
-            }
-            if (pos < tokens.size() && tokens.get(pos).TokenType.equals(",")) {
-                pos++; // consume trailing ,
+                params.addAll(tempParams);
             }
         }
 
@@ -635,14 +671,17 @@ public class chopped {
             pos++; // consume serve
 
             // Parse return value
+            List<Token> returnTokens = new ArrayList<>();
             if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:NOTHING")) {
-                returnValue = null;
                 pos++;
             } else {
-                returnValue = parseExpr(false);
+                while (pos < tokens.size()) {
+                    returnTokens.add(tokens.get(pos));
+                    pos++;
+                }
             }
 
-            functions.put(funcName, new Function(funcName, params, defaults, body, returnValue));
+            functions.put(funcName, new Function(funcName, params, defaults, body, returnTokens));
         }
 
         /**
@@ -843,12 +882,26 @@ public class chopped {
                 parseStatement(true);
             }
 
+            // Evaluate return value
+            Object returnValue;
+            if (func.returnTokens.isEmpty()) {
+                returnValue = null;
+            } else {
+                List<Token> oldTokens2 = tokens;
+                int oldPos2 = pos;
+                tokens = func.returnTokens;
+                pos = 0;
+                returnValue = parseExpr(false);
+                tokens = oldTokens2;
+                pos = oldPos2;
+            }
+
             // Restore
             tokens = oldTokens;
             pos = oldPos;
             variables = oldVars;
 
-            return func.returnValue;
+            return returnValue;
         }
     }
 }

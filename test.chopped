@@ -1,5 +1,30 @@
-using dough, tomato, cook pizza by
-say "Making pizza with " + dough + " and " + tomato
-serve "Delicious pizza"
+say "Testing function definitions and calls"
 
-pizza with dough as "flour", tomato as "sauce"
+cook greet using only name by
+say "Hello " + name
+serve nothing
+
+greet with name as "World"
+
+cook introduce using age and name by
+say name + " is " + age + " years old"
+serve nothing
+
+introduce with age as 25, name as "Bob"
+
+cook sum using a, b and c by
+serve a + b + c
+
+say "Sum result: " + sum with a as 1, b as 2, c as 3
+
+cook double using x=10 by
+serve x * 2
+
+say "Double default: " + double
+say "Double 5: " + double with x as 5
+
+using multiplier and base cook multiply by
+serve multiplier * base
+
+multiply with multiplier as 3, base as 4
+say "Multiplied: " + multiply with multiplier as 3, base as 4
