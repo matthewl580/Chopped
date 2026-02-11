@@ -78,7 +78,19 @@ public class chopped {
                         word.append(text.charAt(i));
                         i++;
                     }
-                    tokenArray.add(new Token(word.toString()));
+                    String w = word.toString();
+                    if (w.toUpperCase().equals("YAP") && i < text.length() /*&& text.charAt(i) == ':'*/) {
+                        // skip comment line
+                        while (i < text.length() && text.charAt(i) != '\n') {
+                            i++;
+                        }
+                        if (i < text.length()) {
+                            tokenArray.add(new Token("\n"));
+                            i++;
+                        }
+                    } else {
+                        tokenArray.add(new Token(w));
+                    }
                 } else if (c == '"') {
                     // Parse string
                     StringBuilder str = new StringBuilder();
@@ -99,7 +111,7 @@ public class chopped {
                     tokenArray.add(new Token(String.valueOf(c)));
                     i++;
                 } else if (c == '\n') {
-                    tokenArray.add(new Token("\n"));
+                  //  tokenArray.add(new Token("\n"));
                     i++;
                 } else {
                     // Skip other whitespace or invalid characters
