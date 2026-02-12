@@ -578,11 +578,14 @@ public class chopped {
                 String param = tokens.get(pos).TokenValue;
                 params.add(param);
                 pos++;
-                        if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:AS")) {
-                            pos++; // consume as
+                        if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:OR")) {
+                            pos++; // consume or
                             Object defaultVal = parseExpr(false);
                             defaults.put(param, defaultVal);
                         }
+                if (pos < tokens.size() && tokens.get(pos).TokenType.equals(",")) {
+                    pos++; // consume ,
+                }
             } else {
                 List<String> tempParams = new ArrayList<>();
                 while (pos < tokens.size()) {
@@ -634,15 +637,14 @@ public class chopped {
                 parseParams(params, defaults);
                 if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("KEYWORD:COOK")) throw new RuntimeException("Expected 'cook' after params");
                 pos++; // consume cook
+                if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("IDENTIFIER")) throw new RuntimeException("Expected function name after cook");
+                funcName = tokens.get(pos).TokenValue;
+                pos++;
             } else {
                 pos++; // consume cook
-            }
-
-            if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("IDENTIFIER")) throw new RuntimeException("Expected function name");
-            funcName = tokens.get(pos).TokenValue;
-            pos++;
-
-            if (!usingFirst) {
+                if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("IDENTIFIER")) throw new RuntimeException("Expected function name after cook");
+                funcName = tokens.get(pos).TokenValue;
+                pos++;
                 if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("KEYWORD:USING")) throw new RuntimeException("Expected 'using' after function name");
                 pos++; // consume using
                 parseParams(params, defaults);
