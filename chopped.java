@@ -71,6 +71,10 @@ public class chopped {
                 this.TokenValue = text.substring(1, text.length() - 1);
                 return;
             }
+            if (text.equals("\n")) {
+                this.TokenType = "NEWLINE";
+                return;
+            }
             switch (text.toLowerCase()) {
                 case "if":
                     this.TokenType = "KEYWORD:IF";
@@ -178,6 +182,10 @@ public class chopped {
                     break;
                 case "!=":
                     this.TokenType = "OPERATOR:NOT_EQUAL";
+                    this.TokenValue = text;
+                    break;
+                case "=":
+                    this.TokenType = "OPERATOR:ASSIGN";
                     this.TokenValue = text;
                     break;
                 case "<":
@@ -352,6 +360,10 @@ public class chopped {
             }
         }
 
+        private static boolean isStatementStart(String tokenType) {
+            return tokenType.equals("KEYWORD:SAY") || tokenType.equals("KEYWORD:IF") || tokenType.equals("KEYWORD:SET") || tokenType.equals("KEYWORD:REPEAT") || tokenType.equals("KEYWORD:COOK") || tokenType.equals("KEYWORD:USING") || tokenType.equals("KEYWORD:CHOPPED");
+        }
+
         /**
          * Parses the list of tokens, handling multiple statements.
          * @param tokenArray The list of tokens to parse.
@@ -360,7 +372,7 @@ public class chopped {
             tokens = tokenArray;
             pos = 0;
             while (pos < tokens.size()) {
-                if (tokens.get(pos).TokenType.equals("\n")) {
+                if (tokens.get(pos).TokenType.equals("NEWLINE")) {
                     pos++;
                     continue;
                 }
@@ -481,30 +493,8 @@ public class chopped {
             pos++;
             if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("KEYWORD:TO")) throw new RuntimeException("Expected 'to' after variable name");
             pos++; // consume to
-            if (pos < tokens.size()) {
-                Token next = tokens.get(pos);
-                if (next.TokenType.equals("KEYWORD:ASK")) {
-                    pos++; // consume ask
-                    if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("STRING")) throw new RuntimeException("Expected string after ask");
-                    String prompt = tokens.get(pos).TokenValue;
-                    pos++;
-                    System.out.print(prompt + " ");
-                    String input = inputScanner.nextLine();
-                    variables.put(varName, input);
-                } else if (next.TokenType.equals("STRING")) {
-                    variables.put(varName, next.TokenValue);
-                    pos++;
-                } else if (next.TokenType.equals("IDENTIFIER")) {
-                    if (!variables.containsKey(next.TokenValue)) {
-                        throw new RuntimeException("Undefined variable: " + next.TokenValue);
-                    }
-                    variables.put(varName, variables.get(next.TokenValue));
-                    pos++;
-                } else {
-                    Object value = parseExpr(false);
-                    variables.put(varName, value);
-                }
-            }
+            Object value = parseExpr(false);
+            variables.put(varName, value);
         }
 
 
@@ -588,11 +578,11 @@ public class chopped {
                 String param = tokens.get(pos).TokenValue;
                 params.add(param);
                 pos++;
-                if (pos < tokens.size() && tokens.get(pos).TokenType.equals("OPERATOR:EQUAL")) {
-                    pos++; // consume =
-                    Object defaultVal = parseExpr(false);
-                    defaults.put(param, defaultVal);
-                }
+                        if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:AS")) {
+                            pos++; // consume as
+                            Object defaultVal = parseExpr(false);
+                            defaults.put(param, defaultVal);
+                        }
             } else {
                 List<String> tempParams = new ArrayList<>();
                 while (pos < tokens.size()) {
@@ -600,8 +590,8 @@ public class chopped {
                         String param = tokens.get(pos).TokenValue;
                         tempParams.add(param);
                         pos++;
-                        if (pos < tokens.size() && tokens.get(pos).TokenType.equals("OPERATOR:EQUAL")) {
-                            pos++; // consume =
+                        if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:AS")) {
+                            pos++; // consume as
                             Object defaultVal = parseExpr(false);
                             defaults.put(param, defaultVal);
                         }
@@ -611,8 +601,8 @@ public class chopped {
                         String param = tokens.get(pos).TokenValue;
                         tempParams.add(param);
                         pos++;
-                        if (pos < tokens.size() && tokens.get(pos).TokenType.equals("OPERATOR:EQUAL")) {
-                            pos++; // consume =
+                        if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:AS")) {
+                            pos++; // consume as
                             Object defaultVal = parseExpr(false);
                             defaults.put(param, defaultVal);
                         }
@@ -675,9 +665,12 @@ public class chopped {
             if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:NOTHING")) {
                 pos++;
             } else {
-                while (pos < tokens.size()) {
+                while (pos < tokens.size() && !tokens.get(pos).TokenType.equals("NEWLINE") && !isStatementStart(tokens.get(pos).TokenType)) {
                     returnTokens.add(tokens.get(pos));
                     pos++;
+                }
+                if (pos < tokens.size() && tokens.get(pos).TokenType.equals("NEWLINE")) {
+                    pos++; // consume NEWLINE
                 }
             }
 
@@ -875,7 +868,7 @@ public class chopped {
             tokens = func.body;
             pos = 0;
             while (pos < tokens.size()) {
-                if (tokens.get(pos).TokenType.equals("\n")) {
+                if (tokens.get(pos).TokenType.equals("NEWLINE")) {
                     pos++;
                     continue;
                 }
