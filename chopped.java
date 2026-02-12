@@ -96,7 +96,7 @@ public class chopped {
                     this.TokenType = "KEYWORD:OTHERWISE";
                     this.TokenValue = text.toLowerCase();
                     break;
-                case "or": // first part in an ELSE statement (or if)
+                case "or":
                     this.TokenType = "KEYWORD:OR";
                     this.TokenValue = text.toLowerCase();
                     break;
@@ -158,6 +158,18 @@ public class chopped {
                     break;
                 case "only":
                     this.TokenType = "KEYWORD:ONLY";
+                    this.TokenValue = text.toLowerCase();
+                    break;
+                case "list":
+                    this.TokenType = "KEYWORD:LIST";
+                    this.TokenValue = text.toLowerCase();
+                    break;
+                case "empty":
+                    this.TokenType = "KEYWORD:EMPTY";
+                    this.TokenValue = text.toLowerCase();
+                    break;
+                case "return":
+                    this.TokenType = "KEYWORD:RETURN";
                     this.TokenValue = text.toLowerCase();
                     break;
                 case "+":
@@ -314,7 +326,7 @@ public class chopped {
                 } else if (c == '=') {
                     tokenArray.add(new Token("="));
                     i++;
-                } else if (c == '+' || c == '-' || c == '*' || c == '/' || c == '<' || c == '>' || c == '(' || c == ')' || c == '!' || c == '?' || c == '.' || c == ',') {
+                } else if (c == '+' || c == '-' || c == '*' || c == '/' || c == '<' || c == '>' || c == '(' || c == ')' || c == '!' || c == '?' || c == '.' || c == ',' || c == ':') {
                     tokenArray.add(new Token(String.valueOf(c)));
                     i++;
                 } else if (c == '\n') {
@@ -485,6 +497,8 @@ public class chopped {
 
         /**
          * Parses a set statement: set var to value (string, identifier, expression, or ask string).
+         * Also supports: set var to empty list
+         * and set var to list with expr1, expr2, and exprN
          */
         private static void parseSet() {
             pos++; // consume set
@@ -493,7 +507,50 @@ public class chopped {
             pos++;
             if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("KEYWORD:TO")) throw new RuntimeException("Expected 'to' after variable name");
             pos++; // consume to
-            Object value = parseExpr(false);
+
+            Object value;
+            if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:EMPTY")) {
+                pos++; // consume empty
+                if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("KEYWORD:LIST")) throw new RuntimeException("Expected 'list' after 'empty'");
+                pos++; // consume list
+                value = new ArrayList<>();
+            } else if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:LIST")) {
+                pos++; // consume list
+                if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("KEYWORD:WITH")) throw new RuntimeException("Expected 'with' after 'list'");
+                pos++; // consume with
+                List<Object> list = new ArrayList<>();
+                Object item = parseExpr(false);
+                list.add(item);
+                boolean lastWasAnd = false;
+                while (pos < tokens.size()) {
+                    if (tokens.get(pos).TokenType.equals(",")) {
+                        pos++; // consume ,
+                        if (pos < tokens.size() && tokens.get(pos).TokenValue.equals("and")) {
+                            pos++; // consume and
+                            item = parseExpr(false);
+                            list.add(item);
+                            lastWasAnd = true;
+                            break;
+                        } else {
+                            item = parseExpr(false);
+                            list.add(item);
+                            lastWasAnd = false;
+                        }
+                    } else if (tokens.get(pos).TokenValue.equals("and")) {
+                        pos++; // consume and
+                        item = parseExpr(false);
+                        list.add(item);
+                        lastWasAnd = true;
+                        break;
+                    } else {
+                        break;
+                    }
+                }
+
+                value = list;
+            } else {
+                value = parseExpr(false);
+            }
             variables.put(varName, value);
         }
 
@@ -566,57 +623,28 @@ public class chopped {
         }
 
         /**
-         * Parses parameters: for 1 param: only param1
-         * for 2 params: param1 and param2
-         * for 3+ params: param1, param2, ..., and paramN
-         * Supports defaults: param=default
+         * Parses parameters: comma-separated params, e.g., param1, param2, param3,
+         * Supports defaults: param or default
          */
         private static void parseParams(List<String> params, Map<String, Object> defaults) {
-            if (pos < tokens.size() && tokens.get(pos).TokenValue.equals("only")) {
-                pos++; // consume only
-                if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("IDENTIFIER")) throw new RuntimeException("Expected parameter after 'only'");
-                String param = tokens.get(pos).TokenValue;
-                params.add(param);
-                pos++;
-                        if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:OR")) {
-                            pos++; // consume or
-                            Object defaultVal = parseExpr(false);
-                            defaults.put(param, defaultVal);
-                        }
-                if (pos < tokens.size() && tokens.get(pos).TokenType.equals(",")) {
-                    pos++; // consume ,
-                }
-            } else {
-                List<String> tempParams = new ArrayList<>();
-                while (pos < tokens.size()) {
-                    if (tokens.get(pos).TokenType.equals("IDENTIFIER")) {
-                        String param = tokens.get(pos).TokenValue;
-                        tempParams.add(param);
-                        pos++;
-                        if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:AS")) {
-                            pos++; // consume as
-                            Object defaultVal = parseExpr(false);
-                            defaults.put(param, defaultVal);
-                        }
-                    } else if (tokens.get(pos).TokenValue.equals("and")) {
-                        pos++; // consume and
-                        if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("IDENTIFIER")) throw new RuntimeException("Expected parameter after 'and'");
-                        String param = tokens.get(pos).TokenValue;
-                        tempParams.add(param);
-                        pos++;
-                        if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:AS")) {
-                            pos++; // consume as
-                            Object defaultVal = parseExpr(false);
-                            defaults.put(param, defaultVal);
-                        }
-                        break; // "and" indicates the last param
-                    } else if (tokens.get(pos).TokenType.equals(",")) {
+            while (pos < tokens.size()) {
+                if (tokens.get(pos).TokenType.equals("IDENTIFIER")) {
+                    String param = tokens.get(pos).TokenValue;
+                    params.add(param);
+                    pos++;
+                    if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:OR")) {
+                        pos++; // consume or
+                        Object defaultVal = parseExpr(false);
+                        defaults.put(param, defaultVal);
+                    }
+                    if (pos < tokens.size() && tokens.get(pos).TokenType.equals(",")) {
                         pos++; // consume ,
                     } else {
                         break;
                     }
+                } else {
+                    break;
                 }
-                params.addAll(tempParams);
             }
         }
 
@@ -810,7 +838,20 @@ public class chopped {
                 if (functions.containsKey(t.TokenValue)) {
                     return parseCall(t.TokenValue);
                 } else if (variables.containsKey(t.TokenValue)) {
-                    return variables.get(t.TokenValue);
+                    Object varValue = variables.get(t.TokenValue);
+                    // Check for list indexing: var:index
+                    if (pos < tokens.size() && tokens.get(pos).TokenValue.equals(":")) {
+                        pos++; // consume :
+                        Object indexObj = parseExpr(false);
+                        if (!(indexObj instanceof Double)) throw new RuntimeException("Index must be numeric");
+                        int index = ((Double) indexObj).intValue() - 1; // 1-based to 0-based
+                        if (!(varValue instanceof List)) throw new RuntimeException("Cannot index non-list variable");
+                        List<Object> list = (List<Object>) varValue;
+                        if (index < 0 || index >= list.size()) throw new RuntimeException("Index out of bounds");
+                        return list.get(index);
+                    } else {
+                        return varValue;
+                    }
                 } else {
                     return t.TokenValue;
                 }
