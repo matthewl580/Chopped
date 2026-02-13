@@ -377,6 +377,23 @@ public class chopped {
         }
 
         /**
+         * Checks if the current position has a function call pattern.
+         * A function call is: identifier with param as value, ...
+         * @return true if it's a function call pattern
+         */
+        private static boolean isFunctionCall() {
+            if (pos < tokens.size() && tokens.get(pos).TokenType.equals("IDENTIFIER")) {
+                String funcName = tokens.get(pos).TokenValue;
+                if (functions.containsKey(funcName)) {
+                    if (pos + 1 < tokens.size() && tokens.get(pos + 1).TokenType.equals("KEYWORD:WITH")) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /**
          * Parses the list of tokens, handling multiple statements.
          * @param tokenArray The list of tokens to parse.
          */
@@ -403,6 +420,11 @@ public class chopped {
                         parseCook();
                     } else if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:USING")) {
                         parseCook();
+                    } else if (isFunctionCall()) {
+                        // Handle function call as a statement
+                        String funcName = tokens.get(pos).TokenValue;
+                        pos++;
+                        parseCall(funcName);
                     } else if (pos < tokens.size()) {
                         parseExpr(true);
                     }
@@ -509,7 +531,21 @@ public class chopped {
             pos++; // consume to
 
             Object value;
-            if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:EMPTY")) {
+            if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:ASK")) {
+                // Handle: set var to ask "prompt"
+                pos++; // consume ask
+                if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("STRING")) throw new RuntimeException("Expected prompt string after 'ask'");
+                String prompt = tokens.get(pos).TokenValue;
+                pos++; // consume prompt string
+                System.out.print(prompt);
+                String userInput = inputScanner.nextLine();
+                // Try to parse as number if possible, otherwise keep as string
+                try {
+                    value = Double.parseDouble(userInput);
+                } catch (NumberFormatException e) {
+                    value = userInput;
+                }
+            } else if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:EMPTY")) {
                 pos++; // consume empty
                 if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("KEYWORD:LIST")) throw new RuntimeException("Expected 'list' after 'empty'");
                 pos++; // consume list
@@ -623,7 +659,7 @@ public class chopped {
         }
 
         /**
-         * Parses parameters: comma-separated params, e.g., param1, param2, param3,
+         * Parses parameters: comma-separated params or params separated by 'and', e.g., param1, param2, param3 or param1 and param2 and param3,
          * Supports defaults: param or default
          */
         private static void parseParams(List<String> params, Map<String, Object> defaults) {
@@ -637,8 +673,8 @@ public class chopped {
                         Object defaultVal = parseExpr(false);
                         defaults.put(param, defaultVal);
                     }
-                    if (pos < tokens.size() && tokens.get(pos).TokenType.equals(",")) {
-                        pos++; // consume ,
+                    if (pos < tokens.size() && (tokens.get(pos).TokenType.equals(",") || tokens.get(pos).TokenValue.equalsIgnoreCase("and"))) {
+                        pos++; // consume , or and
                     } else {
                         break;
                     }
@@ -675,6 +711,10 @@ public class chopped {
                 pos++;
                 if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("KEYWORD:USING")) throw new RuntimeException("Expected 'using' after function name");
                 pos++; // consume using
+                // Handle optional "only" keyword
+                if (pos < tokens.size() && tokens.get(pos).TokenType.equals("KEYWORD:ONLY")) {
+                    pos++; // consume only
+                }
                 parseParams(params, defaults);
             }
 
@@ -834,6 +874,19 @@ public class chopped {
                 return Double.parseDouble(t.TokenValue);
             } else if (t.TokenType.equals("STRING")) {
                 return t.TokenValue;
+            } else if (t.TokenType.equals("KEYWORD:ASK")) {
+                // Handle ask "prompt" - get user input
+                if (pos >= tokens.size() || !tokens.get(pos).TokenType.equals("STRING")) throw new RuntimeException("Expected prompt string after 'ask'");
+                String prompt = tokens.get(pos).TokenValue;
+                pos++; // consume prompt string
+                System.out.print(prompt);
+                String userInput = inputScanner.nextLine();
+                // Try to parse as number if possible, otherwise keep as string
+                try {
+                    return Double.parseDouble(userInput);
+                } catch (NumberFormatException e) {
+                    return userInput;
+                }
             } else if (t.TokenType.equals("IDENTIFIER")) {
                 if (functions.containsKey(t.TokenValue)) {
                     return parseCall(t.TokenValue);
